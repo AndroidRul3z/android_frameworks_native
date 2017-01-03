@@ -63,9 +63,9 @@
 #include <private/android_filesystem_config.h>
 #include <private/gui/SyncFeatures.h>
 
+#include "./DisplayUtils.h"
 #include <set>
 
-#include "./DisplayUtils.h"
 #include "Client.h"
 #include "clz.h"
 #include "Colorizer.h"
@@ -473,25 +473,25 @@ void SurfaceFlinger::init() {
                 sfVsyncPhaseOffsetNs, true, "sf");
         mSFEventThread = new EventThread(sfVsyncSrc, *this);
         mEventQueue.setEventThread(mSFEventThread);
-
-    // set SFEventThread to SCHED_RR to minimize jitter
-        struct sched_param param = {0};
-        param.sched_priority = 4;
-    if (sched_setscheduler(mSFEventThread->getTid(), SCHED_RR, &param) != 0) {
-        ALOGE("Couldn't set SCHED_RR for SFEventThread");
-        }
+		
+       // set SFEventThread to SCHED_FIFO to minimize jitter
+       struct sched_param param = {0};
+       param.sched_priority = 4;
+       if (sched_setscheduler(mSFEventThread->getTid(), SCHED_FIFO, &param) != 0) {
+           ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
+       }
     } else {
         sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
                          vsyncPhaseOffsetNs, true, "sf-app");
         mEventThread = new EventThread(vsyncSrc, *this);
         mEventQueue.setEventThread(mEventThread);
-
-        // set EventThread to SCHED_FIFO to minimize jitter
-        struct sched_param param = {0};
-        param.sched_priority = 2;
-        if (sched_setscheduler(mEventThread->getTid(), SCHED_FIFO, &param) != 0) {
-            ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
-        }
+		
+       // set EventThread to SCHED_FIFO to minimize jitter
+       struct sched_param param = {0};
+       param.sched_priority = 4;
+       if (sched_setscheduler(mEventThread->getTid(), SCHED_FIFO, &param) != 0) {
+           ALOGE("Couldn't set SCHED_FIFO for SFEventThread");
+       }
     }
 
     // Initialize the H/W composer object.  There may or may not be an
@@ -1605,11 +1605,10 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
                             status = state.surface->query(
                                 NATIVE_WINDOW_HEIGHT, &height);
                             ALOGE_IF(status != NO_ERROR,
-                                    "Unable to query height (%d)", status);
-                            if (mUseHwcVirtualDisplays &&
-                                    (MAX_VIRTUAL_DISPLAY_DIMENSION == 0 ||
-                                    (width <= MAX_VIRTUAL_DISPLAY_DIMENSION &&
-                                     height <= MAX_VIRTUAL_DISPLAY_DIMENSION))) {
+                                "Unable to query height (%d)", status);
+                            if (MAX_VIRTUAL_DISPLAY_DIMENSION == 0 ||
+                                (width <= MAX_VIRTUAL_DISPLAY_DIMENSION &&
+                                 height <= MAX_VIRTUAL_DISPLAY_DIMENSION)) {
                                 int usage = 0;
                                 status = state.surface->query(
                                     NATIVE_WINDOW_CONSUMER_USAGE_BITS, &usage);
@@ -3931,5 +3930,4 @@ SurfaceFlinger::DisplayDeviceState::DisplayDeviceState(
 #if defined(__gl2_h_)
 #error "don't include gl2/gl2.h in this file"
 #endif
-
 
